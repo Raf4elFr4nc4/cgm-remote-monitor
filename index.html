@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <base target="_top">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BOM PASTOR - Consulta de Pedidos</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <?!= include('style'); ?>
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="hero-card">
+        <div class="brand-row">
+          <div class="logo-mark" aria-label="Logo BOM PASTOR">BP</div>
+          <div>
+            <p class="eyebrow">BOM PASTOR</p>
+            <h1>Consulta de Pedidos</h1>
+          </div>
+        </div>
+
+        <section class="search-panel" aria-label="Pesquisa de pedidos">
+          <label class="search-label" for="pedidoInput">Número do pedido</label>
+          <div class="search-row">
+            <span class="material-symbols-rounded search-icon" aria-hidden="true">search</span>
+            <input id="pedidoInput" class="search-input" type="text" inputmode="numeric" autocomplete="off" placeholder="Digite o número do pedido">
+            <button class="primary-button" type="button" onclick="pesquisarPedido()">
+              <span class="material-symbols-rounded" aria-hidden="true">manage_search</span>
+              Pesquisar
+            </button>
+          </div>
+        </section>
+      </header>
+
+      <section id="mensagem" class="message-card hidden" role="status"></section>
+
+      <section id="loading" class="loading-card hidden" aria-live="polite">
+        <span class="spinner"></span>
+        <span>Consultando pedido...</span>
+      </section>
+
+      <section id="resultado" class="result-area hidden">
+        <section id="cardsResumo" class="cards-grid" aria-label="Resumo do pedido"></section>
+
+        <section class="details-grid">
+          <article class="info-card">
+            <div class="section-title"><span class="material-symbols-rounded">person</span><h2>Dados do Cliente</h2></div>
+            <div id="clienteDados" class="data-grid"></div>
+          </article>
+
+          <article class="info-card">
+            <div class="section-title"><span class="material-symbols-rounded">assignment</span><h2>Dados do Pedido</h2></div>
+            <div id="pedidoDados" class="data-grid"></div>
+          </article>
+        </section>
+
+        <section class="table-card">
+          <div class="section-title"><span class="material-symbols-rounded">view_list</span><h2>Componentes</h2></div>
+          <div class="table-wrapper">
+            <table class="components-table">
+              <thead>
+                <tr>
+                  <th>Item</th>
+                  <th>Código</th>
+                  <th>Descrição</th>
+                  <th>Cor</th>
+                  <th>Quantidade</th>
+                  <th>Linha</th>
+                  <th>NF</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="componentesTabela"></tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+    </main>
+    <?!= include('script'); ?>
+  </body>
+</html>
