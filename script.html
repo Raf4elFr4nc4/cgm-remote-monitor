@@ -1,0 +1,157 @@
+<script>
+  /** Elementos da interface reutilizados para evitar consultas repetidas ao DOM. */
+  const UI = {
+    pedidoInput: document.getElementById('pedidoInput'),
+    mensagem: document.getElementById('mensagem'),
+    loading: document.getElementById('loading'),
+    resultado: document.getElementById('resultado'),
+    cardsResumo: document.getElementById('cardsResumo'),
+    clienteDados: document.getElementById('clienteDados'),
+    pedidoDados: document.getElementById('pedidoDados'),
+    componentesTabela: document.getElementById('componentesTabela')
+  };
+
+  /** Mapa visual dos status do pedido e dos componentes. */
+  const STATUS_CLASSES = {
+    'produção': 'blue',
+    'separação': 'orange',
+    'expedição': 'purple',
+    'entregue': 'green',
+    'cancelado': 'red'
+  };
+
+  /** Permite pesquisar pressionando Enter no campo principal. */
+  UI.pedidoInput.addEventListener('keydown', event => {
+    if (event.key === 'Enter') pesquisarPedido();
+  });
+
+  /** Pesquisa o pedido no backend Apps Script usando google.script.run. */
+  function pesquisarPedido() {
+    const numeroPedido = UI.pedidoInput.value.trim();
+
+    limparMensagem();
+    mostrarLoading();
+
+    google.script.run
+      .withSuccessHandler(resposta => {
+        ocultarLoading();
+
+        if (!resposta || !resposta.sucesso) {
+          mostrarErro(resposta ? resposta.mensagem : 'Não foi possível consultar o pedido.');
+          return;
+        }
+
+        renderCards(resposta.cards);
+        renderCliente(resposta.cliente);
+        renderPedido(resposta.pedido);
+        renderComponentes(resposta.componentes);
+        UI.resultado.classList.remove('hidden');
+      })
+      .withFailureHandler(erro => {
+        ocultarLoading();
+        mostrarErro(erro && erro.message ? erro.message : 'Erro inesperado ao pesquisar o pedido.');
+      })
+      .pesquisarPedidoBackend(numeroPedido);
+  }
+
+  /** Renderiza os cards de resumo do pedido. */
+  function renderCards(cards) {
+    UI.cardsResumo.innerHTML = cards.map(card => {
+      const classe = obterClasseStatus(card.status) || card.cor;
+      return `
+        <article class="summary-card">
+          <div class="summary-icon ${classe}"><span class="material-symbols-rounded">${escaparHtml(card.icone)}</span></div>
+          <p class="summary-title">${escaparHtml(card.titulo)}</p>
+          <p class="summary-value">${escaparHtml(card.valor)}</p>
+        </article>`;
+    }).join('');
+  }
+
+  /** Renderiza os dados cadastrais do cliente. */
+  function renderCliente(cliente) {
+    renderDataGrid(UI.clienteDados, [
+      ['Nome', cliente.nome],
+      ['Código', cliente.codigo],
+      ['Cidade', cliente.cidade],
+      ['UF', cliente.uf],
+      ['Telefone', cliente.telefone],
+      ['CRM', cliente.crm]
+    ]);
+  }
+
+  /** Renderiza os dados gerais do pedido. */
+  function renderPedido(pedido) {
+    renderDataGrid(UI.pedidoDados, [
+      ['Pedido', pedido.pedido],
+      ['Data', pedido.data],
+      ['Status', pedido.status],
+      ['Transportadora', pedido.transportadora],
+      ['Volumes', pedido.volumes],
+      ['Observações', pedido.observacoes]
+    ]);
+  }
+
+  /** Renderiza a tabela moderna de componentes. */
+  function renderComponentes(componentes) {
+    if (!componentes.length) {
+      UI.componentesTabela.innerHTML = '<tr><td colspan="8">Nenhum componente vinculado a este pedido.</td></tr>';
+      return;
+    }
+
+    UI.componentesTabela.innerHTML = componentes.map(componente => `
+      <tr>
+        <td>${escaparHtml(componente.item)}</td>
+        <td>${escaparHtml(componente.codigo)}</td>
+        <td>${escaparHtml(componente.descricao)}</td>
+        <td>${escaparHtml(componente.cor)}</td>
+        <td>${escaparHtml(componente.quantidade)}</td>
+        <td>${escaparHtml(componente.linha)}</td>
+        <td>${escaparHtml(componente.nf)}</td>
+        <td><span class="status-pill ${obterClasseStatus(componente.status)}">${escaparHtml(componente.status)}</span></td>
+      </tr>`).join('');
+  }
+
+  /** Exibe mensagem de erro amigável. */
+  function mostrarErro(mensagem) {
+    UI.resultado.classList.add('hidden');
+    UI.mensagem.textContent = mensagem;
+    UI.mensagem.classList.remove('hidden');
+  }
+
+  /** Exibe o estado de carregamento. */
+  function mostrarLoading() {
+    UI.loading.classList.remove('hidden');
+  }
+
+  /** Oculta o estado de carregamento. */
+  function ocultarLoading() {
+    UI.loading.classList.add('hidden');
+  }
+
+  /** Remove mensagens antigas. */
+  function limparMensagem() {
+    UI.mensagem.textContent = '';
+    UI.mensagem.classList.add('hidden');
+  }
+
+  /** Renderiza pares de rótulo e valor em um grid de dados. */
+  function renderDataGrid(container, dados) {
+    container.innerHTML = dados.map(([label, value]) => `
+      <div class="data-item">
+        <span class="data-label">${escaparHtml(label)}</span>
+        <span class="data-value">${escaparHtml(value || '-')}</span>
+      </div>`).join('');
+  }
+
+  /** Retorna a classe visual de um status conhecido. */
+  function obterClasseStatus(status) {
+    return STATUS_CLASSES[String(status || '').trim().toLowerCase()] || 'blue';
+  }
+
+  /** Escapa HTML para proteger a interface contra conteúdo indevido da planilha. */
+  function escaparHtml(valor) {
+    return String(valor || '').replace(/[&<>'"]/g, caractere => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
+    }[caractere]));
+  }
+</script>
