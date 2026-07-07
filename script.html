@@ -1,4 +1,10 @@
 <script>
+  /** Estado compartilhado da interface. */
+  const ERP_STATE = {
+    componentes: [],
+    chart: null
+  };
+
   /** Elementos da interface reutilizados para evitar consultas repetidas ao DOM. */
   const UI = {
     pedidoInput: document.getElementById('pedidoInput'),
@@ -8,59 +14,112 @@
     cardsResumo: document.getElementById('cardsResumo'),
     clienteDados: document.getElementById('clienteDados'),
     pedidoDados: document.getElementById('pedidoDados'),
-    componentesTabela: document.getElementById('componentesTabela')
+    componentesTabela: document.getElementById('componentesTabela'),
+    filtroComponentes: document.getElementById('filtroComponentes'),
+    sidebarToggle: document.getElementById('sidebarToggle'),
+    layout: document.querySelector('.erp-layout'),
+    botoesPesquisa: document.querySelectorAll('[data-action="pesquisar-pedido"]')
   };
 
   /** Mapa visual dos status do pedido e dos componentes. */
   const STATUS_CLASSES = {
     'produção': 'blue',
+    'producao': 'blue',
     'separação': 'orange',
+    'separacao': 'orange',
     'expedição': 'purple',
+    'expedicao': 'purple',
     'entregue': 'green',
     'cancelado': 'red'
   };
 
-  /** Permite pesquisar pressionando Enter no campo principal. */
-  UI.pedidoInput.addEventListener('keydown', event => {
-    if (event.key === 'Enter') pesquisarPedido();
-  });
+  iniciarInterface();
+
+  /** Registra eventos iniciais e prepara elementos progressivos. */
+  function iniciarInterface() {
+    if (UI.pedidoInput) {
+      UI.pedidoInput.addEventListener('keydown', event => {
+        if (event.key === 'Enter') pesquisarPedido();
+      });
+    }
+
+    UI.botoesPesquisa.forEach(botao => botao.addEventListener('click', pesquisarPedido));
+
+    if (UI.filtroComponentes) {
+      UI.filtroComponentes.addEventListener('input', () => renderComponentes(ERP_STATE.componentes));
+    }
+
+    if (UI.sidebarToggle && UI.layout) {
+      UI.sidebarToggle.addEventListener('click', () => {
+        UI.layout.classList.toggle('sidebar-collapsed');
+      });
+    }
+
+    window.addEventListener('load', iniciarGraficoPedidos);
+  }
 
   /** Pesquisa o pedido no backend Apps Script usando google.script.run. */
   function pesquisarPedido() {
-    const numeroPedido = UI.pedidoInput.value.trim();
+    const numeroPedido = UI.pedidoInput ? UI.pedidoInput.value.trim() : '';
 
     limparMensagem();
-    mostrarLoading();
 
-    google.script.run
-      .withSuccessHandler(resposta => {
-        ocultarLoading();
+    if (!numeroPedido) {
+      mostrarErro('Digite um número de pedido para pesquisar.');
+      if (UI.pedidoInput) UI.pedidoInput.focus();
+      return;
+    }
 
+    mostrarLoading(true);
+
+    executarBackend('pesquisarPedidoBackend', numeroPedido)
+      .then(resposta => {
         if (!resposta || !resposta.sucesso) {
           mostrarErro(resposta ? resposta.mensagem : 'Não foi possível consultar o pedido.');
           return;
         }
 
-        renderCards(resposta.cards);
-        renderCliente(resposta.cliente);
-        renderPedido(resposta.pedido);
-        renderComponentes(resposta.componentes);
+        renderCards(Array.isArray(resposta.cards) ? resposta.cards : []);
+        renderCliente(resposta.cliente || {});
+        renderPedido(resposta.pedido || {});
+        renderComponentes(Array.isArray(resposta.componentes) ? resposta.componentes : []);
         UI.resultado.classList.remove('hidden');
+        mostrarToast('Pedido localizado com sucesso.', 'success');
       })
-      .withFailureHandler(erro => {
-        ocultarLoading();
+      .catch(erro => {
         mostrarErro(erro && erro.message ? erro.message : 'Erro inesperado ao pesquisar o pedido.');
       })
-      .pesquisarPedidoBackend(numeroPedido);
+      .finally(() => mostrarLoading(false));
+  }
+
+  /** Encapsula a chamada ao Apps Script e exibe uma mensagem clara fora do ambiente publicado. */
+  function executarBackend(nomeFuncao, parametro) {
+    return new Promise((resolve, reject) => {
+      if (!window.google || !google.script || !google.script.run) {
+        reject(new Error('Esta consulta precisa ser executada pela URL publicada do Google Apps Script. O objeto google.script.run não existe fora desse ambiente.'));
+        return;
+      }
+
+      google.script.run
+        .withSuccessHandler(resolve)
+        .withFailureHandler(reject)[nomeFuncao](parametro);
+    });
   }
 
   /** Renderiza os cards de resumo do pedido. */
   function renderCards(cards) {
+    if (!UI.cardsResumo) return;
+
+    if (!cards.length) {
+      UI.cardsResumo.innerHTML = '<article class="summary-card empty-state">Nenhum indicador retornado para este pedido.</article>';
+      return;
+    }
+
     UI.cardsResumo.innerHTML = cards.map(card => {
-      const classe = obterClasseStatus(card.status) || card.cor;
+      const classe = obterClasseStatus(card.status, card.cor || 'blue');
       return `
         <article class="summary-card">
-          <div class="summary-icon ${classe}"><span class="material-symbols-rounded">${escaparHtml(card.icone)}</span></div>
+          <div class="summary-icon ${classe}"><span class="material-symbols-rounded">${escaparHtml(card.icone || 'analytics')}</span></div>
           <p class="summary-title">${escaparHtml(card.titulo)}</p>
           <p class="summary-value">${escaparHtml(card.valor)}</p>
         </article>`;
@@ -91,14 +150,22 @@
     ]);
   }
 
-  /** Renderiza a tabela moderna de componentes. */
+  /** Renderiza a tabela moderna de componentes com pesquisa instantânea. */
   function renderComponentes(componentes) {
-    if (!componentes.length) {
-      UI.componentesTabela.innerHTML = '<tr><td colspan="8">Nenhum componente vinculado a este pedido.</td></tr>';
+    if (!UI.componentesTabela) return;
+
+    ERP_STATE.componentes = Array.isArray(componentes) ? componentes : [];
+    const termo = UI.filtroComponentes ? UI.filtroComponentes.value.trim().toLowerCase() : '';
+    const componentesFiltrados = termo
+      ? ERP_STATE.componentes.filter(componente => Object.values(componente).some(valor => String(valor || '').toLowerCase().includes(termo)))
+      : ERP_STATE.componentes;
+
+    if (!componentesFiltrados.length) {
+      UI.componentesTabela.innerHTML = '<tr><td colspan="8">Nenhum componente encontrado para os filtros atuais.</td></tr>';
       return;
     }
 
-    UI.componentesTabela.innerHTML = componentes.map(componente => `
+    UI.componentesTabela.innerHTML = componentesFiltrados.map(componente => `
       <tr>
         <td>${escaparHtml(componente.item)}</td>
         <td>${escaparHtml(componente.codigo)}</td>
@@ -113,29 +180,38 @@
 
   /** Exibe mensagem de erro amigável. */
   function mostrarErro(mensagem) {
-    UI.resultado.classList.add('hidden');
+    if (UI.resultado) UI.resultado.classList.add('hidden');
+    if (!UI.mensagem) return;
     UI.mensagem.textContent = mensagem;
-    UI.mensagem.classList.remove('hidden');
+    UI.mensagem.className = 'message-card error';
   }
 
-  /** Exibe o estado de carregamento. */
-  function mostrarLoading() {
-    UI.loading.classList.remove('hidden');
-  }
-
-  /** Oculta o estado de carregamento. */
-  function ocultarLoading() {
-    UI.loading.classList.add('hidden');
+  /** Exibe ou oculta o estado de carregamento. */
+  function mostrarLoading(ativo) {
+    if (UI.loading) UI.loading.classList.toggle('hidden', !ativo);
+    UI.botoesPesquisa.forEach(botao => {
+      botao.disabled = ativo;
+      botao.classList.toggle('is-loading', ativo);
+    });
   }
 
   /** Remove mensagens antigas. */
   function limparMensagem() {
+    if (!UI.mensagem) return;
     UI.mensagem.textContent = '';
-    UI.mensagem.classList.add('hidden');
+    UI.mensagem.className = 'message-card hidden';
+  }
+
+  /** Mostra feedback discreto de sucesso. */
+  function mostrarToast(mensagem, tipo) {
+    if (!UI.mensagem) return;
+    UI.mensagem.textContent = mensagem;
+    UI.mensagem.className = `message-card ${tipo || 'success'}`;
   }
 
   /** Renderiza pares de rótulo e valor em um grid de dados. */
   function renderDataGrid(container, dados) {
+    if (!container) return;
     container.innerHTML = dados.map(([label, value]) => `
       <div class="data-item">
         <span class="data-label">${escaparHtml(label)}</span>
@@ -144,8 +220,8 @@
   }
 
   /** Retorna a classe visual de um status conhecido. */
-  function obterClasseStatus(status) {
-    return STATUS_CLASSES[String(status || '').trim().toLowerCase()] || 'blue';
+  function obterClasseStatus(status, fallback) {
+    return STATUS_CLASSES[String(status || '').trim().toLowerCase()] || fallback || 'blue';
   }
 
   /** Escapa HTML para proteger a interface contra conteúdo indevido da planilha. */
@@ -153,5 +229,85 @@
     return String(valor || '').replace(/[&<>'"]/g, caractere => ({
       '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
     }[caractere]));
+  }
+
+  /** Inicializa o gráfico corporativo com Chart.js quando disponível, ou desenha um fallback nativo. */
+  function iniciarGraficoPedidos() {
+    const canvas = document.getElementById('pedidosChart');
+    if (!canvas) return;
+
+    const dados = [18, 24, 21, 32, 28, 36];
+    const labels = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+
+    if (typeof Chart !== 'undefined') {
+      ERP_STATE.chart = new Chart(canvas, {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [{
+            label: 'Pedidos',
+            data: dados,
+            borderColor: '#1565C0',
+            backgroundColor: 'rgba(66, 165, 245, .18)',
+            pointBackgroundColor: '#FFC107',
+            pointBorderColor: '#1565C0',
+            tension: .38,
+            fill: true
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { grid: { display: false }, ticks: { color: '#607D8B' } },
+            y: { border: { display: false }, grid: { color: '#E5E7EB' }, ticks: { color: '#607D8B' } }
+          }
+        }
+      });
+      return;
+    }
+
+    desenharGraficoFallback(canvas, dados);
+  }
+
+  /** Desenha um gráfico simples caso o CDN do Chart.js seja bloqueado. */
+  function desenharGraficoFallback(canvas, dados) {
+    const contexto = canvas.getContext('2d');
+    if (!contexto) return;
+
+    const largura = canvas.width = canvas.offsetWidth || 720;
+    const altura = canvas.height = canvas.offsetHeight || 220;
+    const margem = 24;
+    const maximo = Math.max(...dados);
+    const passoX = (largura - margem * 2) / (dados.length - 1);
+
+    contexto.clearRect(0, 0, largura, altura);
+    contexto.strokeStyle = '#E5E7EB';
+    contexto.lineWidth = 1;
+    contexto.beginPath();
+    contexto.moveTo(margem, altura - margem);
+    contexto.lineTo(largura - margem, altura - margem);
+    contexto.stroke();
+
+    contexto.strokeStyle = '#1565C0';
+    contexto.lineWidth = 4;
+    contexto.beginPath();
+    dados.forEach((valor, index) => {
+      const x = margem + index * passoX;
+      const y = altura - margem - ((valor / maximo) * (altura - margem * 2));
+      if (index === 0) contexto.moveTo(x, y);
+      else contexto.lineTo(x, y);
+    });
+    contexto.stroke();
+
+    contexto.fillStyle = '#FFC107';
+    dados.forEach((valor, index) => {
+      const x = margem + index * passoX;
+      const y = altura - margem - ((valor / maximo) * (altura - margem * 2));
+      contexto.beginPath();
+      contexto.arc(x, y, 5, 0, Math.PI * 2);
+      contexto.fill();
+    });
   }
 </script>

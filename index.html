@@ -4,80 +4,109 @@
     <base target="_top">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BOM PASTOR - Consulta de Pedidos</title>
+    <title>BOM PASTOR - ERP Corporativo</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
     <?!= include('style'); ?>
   </head>
   <body>
-    <main class="app-shell">
-      <header class="hero-card">
-        <div class="brand-row">
+    <div class="erp-layout">
+      <aside class="sidebar" aria-label="Menu principal">
+        <div class="sidebar-brand">
           <div class="logo-mark" aria-label="Logo BOM PASTOR">BP</div>
-          <div>
-            <p class="eyebrow">BOM PASTOR</p>
-            <h1>Consulta de Pedidos</h1>
+          <div class="brand-copy">
+            <strong>BOM PASTOR</strong>
+            <span>ERP Industrial</span>
           </div>
         </div>
+        <nav class="sidebar-nav">
+          <a class="nav-item active" href="#dashboard"><span class="material-symbols-rounded">dashboard</span><span>Dashboard</span></a>
+          <a class="nav-item" href="#pedidos"><span class="material-symbols-rounded">assignment</span><span>Pedidos</span></a>
+          <a class="nav-item" href="#clientes"><span class="material-symbols-rounded">groups</span><span>Clientes</span></a>
+          <a class="nav-item" href="#producao"><span class="material-symbols-rounded">precision_manufacturing</span><span>Produção</span></a>
+          <a class="nav-item" href="#expedicao"><span class="material-symbols-rounded">local_shipping</span><span>Expedição</span></a>
+          <a class="nav-item" href="#financeiro"><span class="material-symbols-rounded">payments</span><span>Financeiro</span></a>
+          <a class="nav-item" href="#configuracoes"><span class="material-symbols-rounded">settings</span><span>Configurações</span></a>
+        </nav>
+        <button id="sidebarToggle" class="sidebar-toggle" type="button" aria-label="Recolher menu"><span class="material-symbols-rounded">dock_to_right</span></button>
+      </aside>
+
+      <main class="workspace">
+        <header class="topbar">
+          <div class="topbar-logo">
+            <span class="material-symbols-rounded">business_center</span>
+            <strong>Consulta de Pedidos</strong>
+          </div>
+          <label class="global-search" for="pedidoInput">
+            <span class="material-symbols-rounded" aria-hidden="true">search</span>
+            <input id="pedidoInput" type="text" inputmode="numeric" autocomplete="off" placeholder="Pesquisar pedido, cliente ou NF">
+          </label>
+          <div class="topbar-actions">
+            <button class="icon-button" type="button" aria-label="Notificações"><span class="material-symbols-rounded">notifications</span><em>3</em></button>
+            <div class="user-chip" aria-label="Usuário logado">
+              <div class="avatar">AD</div>
+              <div><strong>Admin</strong><span>Perfil gestor</span></div>
+            </div>
+          </div>
+        </header>
+
+        <section id="dashboard" class="dashboard-header">
+          <div>
+            <p class="eyebrow">ERP BOM PASTOR</p>
+            <h1>Visão corporativa de pedidos</h1>
+            <span>Interface limpa, rápida e orientada a indicadores de operação.</span>
+          </div>
+          <button class="primary-button" type="button" data-action="pesquisar-pedido">
+            <span class="material-symbols-rounded" aria-hidden="true">manage_search</span>
+            Pesquisar pedido
+          </button>
+        </section>
+
+        <section class="kpi-grid" aria-label="Indicadores do ERP">
+          <article class="kpi-card highlight"><div><span>Total de Clientes</span><strong>1.284</strong><small>+8,4% no mês</small></div><span class="material-symbols-rounded">groups</span><div class="sparkline up"></div></article>
+          <article class="kpi-card"><div><span>Pedidos do Dia</span><strong>86</strong><small>+12 novas entradas</small></div><span class="material-symbols-rounded">shopping_cart</span><div class="sparkline neutral"></div></article>
+          <article class="kpi-card"><div><span>Em Produção</span><strong>42</strong><small>7 prioridades</small></div><span class="material-symbols-rounded">precision_manufacturing</span><div class="sparkline up"></div></article>
+          <article class="kpi-card"><div><span>Expedidos</span><strong>31</strong><small>+5,1% hoje</small></div><span class="material-symbols-rounded">local_shipping</span><div class="sparkline success"></div></article>
+          <article class="kpi-card"><div><span>Ordens de Serviço</span><strong>19</strong><small>4 em análise</small></div><span class="material-symbols-rounded">receipt_long</span><div class="sparkline neutral"></div></article>
+          <article class="kpi-card highlight"><div><span>Faturamento</span><strong>R$ 128k</strong><small>Meta 78%</small></div><span class="material-symbols-rounded">monitoring</span><div class="sparkline up"></div></article>
+          <article class="kpi-card warning"><div><span>Pendências</span><strong>11</strong><small>-3 desde ontem</small></div><span class="material-symbols-rounded">warning</span><div class="sparkline down"></div></article>
+        </section>
+
+        <section class="chart-card" aria-label="Gráfico de evolução de pedidos">
+          <div class="section-title"><span class="material-symbols-rounded">stacked_line_chart</span><h2>Evolução semanal</h2></div>
+          <canvas id="pedidosChart" height="92"></canvas>
+        </section>
 
         <section class="search-panel" aria-label="Pesquisa de pedidos">
-          <label class="search-label" for="pedidoInput">Número do pedido</label>
-          <div class="search-row">
-            <span class="material-symbols-rounded search-icon" aria-hidden="true">search</span>
-            <input id="pedidoInput" class="search-input" type="text" inputmode="numeric" autocomplete="off" placeholder="Digite o número do pedido">
-            <button class="primary-button" type="button" onclick="pesquisarPedido()">
-              <span class="material-symbols-rounded" aria-hidden="true">manage_search</span>
-              Pesquisar
-            </button>
+          <div>
+            <p class="section-kicker">Consulta rápida</p>
+            <h2>Número do pedido</h2>
+          </div>
+          <div class="search-actions">
+            <button class="secondary-button" type="button" aria-label="Abrir filtros rápidos"><span class="material-symbols-rounded">filter_alt</span>Filtros rápidos</button>
+            <button class="primary-button" type="button" data-action="pesquisar-pedido"><span class="material-symbols-rounded">search</span>Pesquisar</button>
           </div>
         </section>
-      </header>
 
-      <section id="mensagem" class="message-card hidden" role="status"></section>
+        <section id="mensagem" class="message-card hidden" role="status"></section>
+        <section id="loading" class="loading-card hidden" aria-live="polite"><span class="skeleton-line"></span><span class="skeleton-line short"></span><span>Consultando pedido...</span></section>
 
-      <section id="loading" class="loading-card hidden" aria-live="polite">
-        <span class="spinner"></span>
-        <span>Consultando pedido...</span>
-      </section>
-
-      <section id="resultado" class="result-area hidden">
-        <section id="cardsResumo" class="cards-grid" aria-label="Resumo do pedido"></section>
-
-        <section class="details-grid">
-          <article class="info-card">
-            <div class="section-title"><span class="material-symbols-rounded">person</span><h2>Dados do Cliente</h2></div>
-            <div id="clienteDados" class="data-grid"></div>
-          </article>
-
-          <article class="info-card">
-            <div class="section-title"><span class="material-symbols-rounded">assignment</span><h2>Dados do Pedido</h2></div>
-            <div id="pedidoDados" class="data-grid"></div>
-          </article>
+        <section id="resultado" class="result-area hidden">
+          <section id="cardsResumo" class="cards-grid" aria-label="Resumo do pedido"></section>
+          <section class="details-grid">
+            <article class="info-card"><div class="section-title"><span class="material-symbols-rounded">person</span><h2>Dados do Cliente</h2></div><div id="clienteDados" class="data-grid"></div></article>
+            <article class="info-card"><div class="section-title"><span class="material-symbols-rounded">assignment</span><h2>Dados do Pedido</h2></div><div id="pedidoDados" class="data-grid"></div></article>
+          </section>
+          <section id="pedidos" class="table-card">
+            <div class="table-toolbar"><div class="section-title"><span class="material-symbols-rounded">view_list</span><h2>Componentes</h2></div><div class="table-controls"><input id="filtroComponentes" type="search" placeholder="Pesquisa instantânea"><button class="secondary-button small" type="button">Ordenar</button></div></div>
+            <div class="table-wrapper"><table class="components-table"><thead><tr><th>Item</th><th>Código</th><th>Descrição</th><th>Cor</th><th>Quantidade</th><th>Linha</th><th>NF</th><th>Status</th></tr></thead><tbody id="componentesTabela"></tbody></table></div>
+            <div class="pagination"><span>1-10 de 10 registros</span><button type="button">Anterior</button><button type="button">Próxima</button></div>
+          </section>
         </section>
-
-        <section class="table-card">
-          <div class="section-title"><span class="material-symbols-rounded">view_list</span><h2>Componentes</h2></div>
-          <div class="table-wrapper">
-            <table class="components-table">
-              <thead>
-                <tr>
-                  <th>Item</th>
-                  <th>Código</th>
-                  <th>Descrição</th>
-                  <th>Cor</th>
-                  <th>Quantidade</th>
-                  <th>Linha</th>
-                  <th>NF</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody id="componentesTabela"></tbody>
-            </table>
-          </div>
-        </section>
-      </section>
-    </main>
+      </main>
+    </div>
     <?!= include('script'); ?>
   </body>
 </html>
